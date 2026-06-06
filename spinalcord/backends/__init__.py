@@ -1,8 +1,8 @@
 """Backends — pluggable embodiment implementations.
 
-`FakeBackend` is always available (stdlib only). `HandsneyesBackend` needs
-httpx and is imported lazily from the top-level package
-(`spinalcord.HandsneyesBackend`) so the core stays dependency-free.
+`Backend` is the ABC you subclass to drive a real body. `FakeBackend` is a
+scripted, hardware-free reference implementation (stdlib only) used for tests
+and as a worked example of the contract.
 """
 from __future__ import annotations
 

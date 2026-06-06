@@ -7,8 +7,8 @@ Defaults are SAFE: ``read_only=True`` means hands refuse until the consumer
 explicitly opts in. This lets a new integration run eyes-only (zero blast
 radius) and flip to acting only once its perception loop is trusted.
 
-This is additive to whatever gates the backend already enforces (handsneyes,
-for instance, won't type without visually confirming a login screen). Both
+This is additive to whatever gates the backend itself enforces (a backend may,
+for instance, refuse to type unless it visually confirms a login screen). Both
 must pass.
 """
 from __future__ import annotations

@@ -4,16 +4,13 @@ A cognitive layer (a "brain") plans; an embodiment layer (a "body") acts.
 ``spinalcord`` is the conduit between them: it carries **afferent** signals
 up (eyes — observe / locate / verify / read) and **efferent** signals down
 (hands — click / type / key / scroll), as typed, safety-gated calls over a
-pluggable backend.
+pluggable `Backend`.
 
-The reference backend (`HandsneyesBackend`) talks to a running ``handsneyes``
-Command Center over HTTP — none of handsneyes' vision / servo / model code is
-duplicated here. A `FakeBackend` provides scripted, hardware-free operation so
-consumers can unit-test a full observe→act→observe loop offline.
-
-Core (`Embodiment`, `FakeBackend`, the type protocol, `SafetyGate`) imports
-with **zero third-party dependencies**. `HandsneyesBackend` needs ``httpx``
-(``pip install spinalcord[handsneyes]``) and is imported lazily.
+The package is **dependency-free** (stdlib only). It ships one working
+backend — `FakeBackend` (scripted, hardware-free) — and a `Backend` ABC you
+subclass to drive a real body (browser automation, OS automation, a VM
+driver, a remote HID bridge, a test harness, …). `Embodiment` wraps any
+backend with a `SafetyGate` and post-action observation.
 """
 from __future__ import annotations
 
@@ -43,15 +40,4 @@ __all__ = [
     "LocateResult",
     "VerifyResult",
     "ActionResult",
-    "HandsneyesBackend",  # lazy — see __getattr__
 ]
-
-
-def __getattr__(name: str):  # PEP 562 — lazy optional backend
-    if name == "HandsneyesBackend":
-        # Imported lazily so the core stays dependency-free; this backend
-        # needs httpx (spinalcord[handsneyes]).
-        from .backends.handsneyes_cc import HandsneyesBackend
-
-        return HandsneyesBackend
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

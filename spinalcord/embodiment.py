@@ -49,14 +49,6 @@ class Embodiment:
         return cls(FakeBackend(script=script), read_only=read_only,
                    settle_ms=settle_ms, **kw)
 
-    @classmethod
-    def handsneyes(cls, base_url: str = "http://localhost:8765",
-                   target: Optional[str] = None, **kw) -> "Embodiment":
-        """A live embodiment over a running handsneyes Command Center.
-        Imports the httpx-backed backend lazily."""
-        from .backends.handsneyes_cc import HandsneyesBackend
-        return cls(HandsneyesBackend(base_url=base_url, target=target), **kw)
-
     # ── meta ──────────────────────────────────────────────────────────────────
     def capabilities(self) -> set:
         return self.backend.capabilities()

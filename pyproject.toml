@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "spinalcord"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A backend-agnostic sensorimotor protocol — eyes and hands for cognitive agents driving a computer."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -26,19 +26,22 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-# Core is intentionally dependency-free (stdlib only): the type protocol,
-# the SafetyGate, the Embodiment facade, and the FakeBackend all import with
-# nothing but the standard library. Only the HTTP backend needs httpx.
+# Intentionally dependency-free (stdlib only): the type protocol, the
+# SafetyGate, the Embodiment facade, and the FakeBackend import with nothing
+# but the standard library. Real-body backends bring their own deps.
 dependencies = []
 
 [project.optional-dependencies]
-handsneyes = ["httpx>=0.27"]
-dev = ["httpx>=0.27", "pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "build>=1.2", "twine>=5"]
 
 [project.urls]
 Homepage = "https://github.com/andrasfe/spinalcord"
 Repository = "https://github.com/andrasfe/spinalcord"
 Issues = "https://github.com/andrasfe/spinalcord/issues"
+
+[tool.hatch.version]
+# Single source of truth — bump __version__ in spinalcord/__init__.py only.
+path = "spinalcord/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["spinalcord"]

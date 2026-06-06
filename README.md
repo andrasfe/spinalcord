@@ -11,16 +11,15 @@ safety-gated calls over a **pluggable backend**.
 ```
    ┌─────────┐   afferent (eyes) ↑    ┌────────────┐   actions   ┌──────────┐
    │  brain  │ ◀───────────────────── │ spinalcord │ ──────────▶ │   body   │
-   │ (plans) │ ──────────────────────▶│ (protocol) │ ◀────────── │ (acts)   │
+   │ (plans) │ ──────────────────────▶│ (protocol) │ ◀────────── │ (backend)│
    └─────────┘   efferent (hands) ↓    └────────────┘  observations└──────────┘
 ```
 
-The reference backend talks to [**handsneyes**](https://github.com/andrasfe/handsneyes)
-— a physical-telepresence system (webcam vision + Raspberry Pi HID + a learned
-closed-loop visual servo) — over its HTTP API. **None of handsneyes' vision,
-servo, or model code is duplicated here**; `spinalcord` is a thin, additive
-consumer. The same protocol can front any other body (Playwright, pyautogui,
-a VM driver, …) — write a `Backend` subclass and you're done.
+The package is **dependency-free** (stdlib only). It ships one working
+backend — `FakeBackend` (scripted, hardware-free) — and a `Backend` ABC you
+subclass to drive a real body: browser automation (Playwright/Selenium), OS
+automation (pyautogui / accessibility APIs), a VM driver, a remote HID bridge,
+or a test harness. The protocol doesn't care which.
 
 ## Why it exists
 
@@ -30,19 +29,20 @@ narrow, typed seam, so:
 
 - the planner stays free to be anything (an LLM loop, a cognitive
   architecture, a script);
-- the body stays free to be anything (telepresence, local automation, a test
-  harness);
-- and the whole loop is **unit-testable offline** via a scripted fake backend —
-  no hardware, no network, no API keys.
+- the body stays free to be anything (a real desktop, a browser, a VM, a
+  fake);
+- and the whole loop is **unit-testable offline** via the scripted fake
+  backend — no hardware, no network, no API keys.
 
 ## Install
 
 ```bash
-pip install spinalcord                 # core: stdlib only, zero deps
-pip install spinalcord[handsneyes]     # + the httpx-backed handsneyes backend
+pip install spinalcord
 ```
 
-## Quickstart — offline, fake body (works immediately)
+That's it — no dependencies. (Dev tooling: `pip install spinalcord[dev]`.)
+
+## Quickstart — offline, scripted body (works immediately)
 
 ```python
 from spinalcord import Embodiment
@@ -61,28 +61,6 @@ res = em.click("Run")                               # efferent: locate + click
 print(res.ok, res.steps, res.state_after.ocr_text)  # grounded outcome
 ```
 
-## Quickstart — live, handsneyes body
-
-```python
-from spinalcord import Embodiment
-
-# Defaults to read_only=True (eyes only — zero blast radius).
-em = Embodiment.handsneyes(base_url="http://localhost:8765")
-print(em.health())
-print(em.observe(ocr=True).render_text())
-
-# Opt into acting, with a per-action veto your planner controls:
-em = Embodiment.handsneyes(
-    read_only=False,
-    confirm=lambda desc: input(f"do {desc}? [y/N] ").strip() == "y",
-    allowed_apps=["Firefox"],
-    max_actions_per_min=20,
-)
-em.click_at(0.80, 0.20)
-```
-
-(Requires a running `handsneyes cc`. See that project's `BRAIN_INTEGRATION_SPEC.md`.)
-
 ## The protocol
 
 All coordinates are `pct` — fractions in `[0, 1]`, top-left origin,
@@ -96,7 +74,7 @@ string — feed it to an embedding model and use it as a key in a learned world
 model. Determinism is guaranteed (same observation → byte-identical string).
 
 `ActionResult` carries **grounding** for predictive-coding / world-model
-consumers: `steps` (visual-servo iterations), `duration_ms`,
+consumers: `steps` (e.g. visual-servo iterations), `duration_ms`,
 `final_cursor_pct`, `frame_before` / `frame_after`, and a `state_after`
 observation bracketing the action.
 
@@ -110,8 +88,8 @@ observation bracketing the action.
 - `max_actions_per_min` — rate limit against runaway loops.
 - `panic()` — latch into a permanent refusing state.
 
-This is *additive* to whatever gates the backend enforces (handsneyes, e.g.,
-won't type without visually confirming a login screen). Both must pass.
+This is *additive* to whatever gates a backend enforces internally. Both must
+pass.
 
 ## Writing a backend
 
@@ -122,13 +100,49 @@ Subclass `spinalcord.Backend`, implement the eyes (`observe`, optionally
 observation for you — a backend only answers "how do I see / move", never
 "should I".
 
+```python
+from spinalcord import Backend, Embodiment
+from spinalcord.types import Observation, ActionResult
+
+class MyBackend(Backend):
+    name = "mybody"
+    def capabilities(self):
+        return {"pixels", "click", "type", "key"}
+    def observe(self, *, ocr=False, locate=None) -> Observation:
+        ...   # capture your screen → Observation
+    def do_click_at(self, x_pct, y_pct, button, count) -> ActionResult:
+        ...   # drive your mouse; return ActionResult(ok=True, ...)
+    def do_type_text(self, text, secret, append_enter) -> ActionResult:
+        ...
+    def do_key(self, combo) -> ActionResult:
+        ...
+
+em = Embodiment(MyBackend(), read_only=False)
+```
+
+`FakeBackend` (in `spinalcord/backends/fake.py`) is a complete, readable
+reference implementation of the contract.
+
 ## Develop
 
 ```bash
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v     # 27 tests, fully offline
+python -m unittest discover -s tests -v     # fully offline, no deps
 # or: pytest
 ```
+
+## Releasing
+
+Maintainers: bump `__version__` in `spinalcord/__init__.py`, then either
+
+```bash
+scripts/release.sh --test     # publish to TestPyPI first
+scripts/release.sh            # publish to PyPI
+```
+
+or push a GitHub Release — `.github/workflows/publish.yml` builds and
+publishes via PyPI Trusted Publishing (no tokens). See the script header and
+the workflow comments for setup.
 
 ## License
 
