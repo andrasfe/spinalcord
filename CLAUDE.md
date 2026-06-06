@@ -87,13 +87,15 @@ test for it.
 Version is single-sourced from `__version__` in `spinalcord/__init__.py`
 (hatchling reads it; `pyproject.toml` declares `dynamic = ["version"]`).
 
-- **Bump** `__version__`, commit.
-- **Local:** `scripts/release.sh --test` (TestPyPI) then `scripts/release.sh`
-  (PyPI). `--tag` pushes a `vX.Y.Z` git tag after a real upload.
-- **CI (preferred):** publish a GitHub Release tagged `vX.Y.Z`;
-  `.github/workflows/publish.yml` builds and uploads via PyPI Trusted
-  Publishing (no tokens). Requires a one-time trusted-publisher config on PyPI
-  (see the workflow header).
+- **CI (primary):** bump `__version__`, commit, push to `main`.
+  `.github/workflows/publish.yml` runs on every push to main, but only
+  builds+publishes when the version isn't already on PyPI (it queries the PyPI
+  JSON API and skips otherwise). Publishes via Trusted Publishing — no tokens.
+  One-time PyPI "pending publisher" config is documented in the workflow
+  header. **So: a version bump is the release trigger; ordinary pushes are
+  no-ops.**
+- **Local / TestPyPI:** `scripts/release.sh --test` then `scripts/release.sh`.
+  `--tag` pushes a `vX.Y.Z` git tag after a real upload.
 
 ## Conventions
 

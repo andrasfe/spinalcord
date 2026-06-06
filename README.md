@@ -133,16 +133,19 @@ python -m unittest discover -s tests -v     # fully offline, no deps
 
 ## Releasing
 
-Maintainers: bump `__version__` in `spinalcord/__init__.py`, then either
+Publishing is automatic. Bump `__version__` in `spinalcord/__init__.py`,
+commit, and **push to `main`** — `.github/workflows/publish.yml` builds, tests,
+and publishes to PyPI via Trusted Publishing (no tokens). Pushes that don't
+change the version are a no-op (the workflow checks PyPI and skips).
+
+One-time setup is in the workflow header (add a "pending publisher" on PyPI).
+
+For a manual / TestPyPI publish, use the local script:
 
 ```bash
-scripts/release.sh --test     # publish to TestPyPI first
-scripts/release.sh            # publish to PyPI
+scripts/release.sh --test     # TestPyPI
+scripts/release.sh            # PyPI
 ```
-
-or push a GitHub Release — `.github/workflows/publish.yml` builds and
-publishes via PyPI Trusted Publishing (no tokens). See the script header and
-the workflow comments for setup.
 
 ## License
 
