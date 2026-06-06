@@ -49,6 +49,14 @@ class Embodiment:
         return cls(FakeBackend(script=script), read_only=read_only,
                    settle_ms=settle_ms, **kw)
 
+    @classmethod
+    def macos(cls, *, capture_dir: Optional[str] = None, **kw) -> "Embodiment":
+        """A live embodiment over the host Mac (screencapture + cliclick).
+        Defaults to ``read_only=True`` (eyes only) like the base constructor —
+        opt into hands explicitly with ``read_only=False``."""
+        from .backends.macos import MacOSBackend
+        return cls(MacOSBackend(capture_dir=capture_dir), **kw)
+
     # ── meta ──────────────────────────────────────────────────────────────────
     def capabilities(self) -> set:
         return self.backend.capabilities()

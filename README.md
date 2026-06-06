@@ -61,6 +61,26 @@ res = em.click("Run")                               # efferent: locate + click
 print(res.ok, res.steps, res.state_after.ocr_text)  # grounded outcome
 ```
 
+## Quickstart — live, your Mac
+
+```python
+from afferent import Embodiment
+
+# Eyes only by default (read_only=True) — zero blast radius.
+em = Embodiment.macos()
+print(em.capabilities())                 # {'pixels','click','type','key'} if cliclick installed
+print(em.observe().render_text())        # frontmost app + screenshot frame
+
+# Opt into hands, gated by a confirm callback you control:
+em = Embodiment.macos(read_only=False, confirm=lambda d: input(f"{d}? [y/N] ") == "y")
+em.click_at(0.5, 0.5)
+```
+
+Eyes use the built-in `screencapture` (grant **Screen Recording**); hands use
+[`cliclick`](https://github.com/BlueM/cliclick) (`brew install cliclick`, grant
+**Accessibility**). Missing tools degrade gracefully — `capabilities()` reflects
+what's actually available.
+
 ## The protocol
 
 All coordinates are `pct` — fractions in `[0, 1]`, top-left origin,

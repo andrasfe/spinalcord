@@ -6,16 +6,18 @@ up (eyes — observe / locate / verify / read) and **efferent** signals down
 (hands — click / type / key / scroll), as typed, safety-gated calls over a
 pluggable `Backend`.
 
-The package is **dependency-free** (stdlib only). It ships one working
-backend — `FakeBackend` (scripted, hardware-free) — and a `Backend` ABC you
-subclass to drive a real body (browser automation, OS automation, a VM
-driver, a remote HID bridge, a test harness, …). `Embodiment` wraps any
-backend with a `SafetyGate` and post-action observation.
+The package is **dependency-free** (stdlib only). It ships `FakeBackend`
+(scripted, hardware-free) for tests, `MacOSBackend` (drives the host Mac via
+the built-in `screencapture` + `cliclick`), and a `Backend` ABC you subclass
+to drive any other body (browser automation, a VM driver, a remote HID
+bridge, …). `Embodiment` wraps any backend with a `SafetyGate` and
+post-action observation.
 """
 from __future__ import annotations
 
 from .backends.base import Backend
 from .backends.fake import FakeBackend
+from .backends.macos import MacOSBackend
 from .embodiment import Embodiment
 from .safety import SafetyGate
 from .types import (
@@ -27,12 +29,13 @@ from .types import (
     VisualElement,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Embodiment",
     "Backend",
     "FakeBackend",
+    "MacOSBackend",
     "SafetyGate",
     "Frame",
     "VisualElement",
