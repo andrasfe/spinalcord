@@ -1,16 +1,16 @@
 name: Publish to PyPI
 
-# Publishes spinalcord automatically on every push to main — but only when the
-# version in spinalcord/__init__.py is one that isn't already on PyPI. So:
+# Publishes afferent automatically on every push to main — but only when the
+# version in afferent/__init__.py is one that isn't already on PyPI. So:
 #   - push without bumping __version__  → build/publish steps skip (green no-op)
 #   - push that bumps __version__        → build, test, and publish to PyPI
 #
 # Uses PyPI Trusted Publishing (OIDC) — NO API token stored anywhere.
 # ONE-TIME setup on PyPI (https://pypi.org/manage/account/publishing/):
 #   "Add a pending publisher"
-#     PyPI Project Name:  spinalcord
+#     PyPI Project Name:  afferent
 #     Owner:              andrasfe
-#     Repository name:    spinalcord
+#     Repository name:    spinalcord        # the GitHub repo (unchanged)
 #     Workflow name:      publish.yml
 #     Environment:        (leave blank)
 # That's the whole setup. (If you'd rather use a token instead of trusted
@@ -38,19 +38,19 @@ jobs:
       - name: Read package version
         id: ver
         run: |
-          V=$(grep -oE '__version__ = "[^"]+"' spinalcord/__init__.py | cut -d'"' -f2)
+          V=$(grep -oE '__version__ = "[^"]+"' afferent/__init__.py | cut -d'"' -f2)
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "spinalcord version: $V"
+          echo "afferent version: $V"
 
       - name: Is this version already on PyPI?
         id: gate
         run: |
-          if curl -sf "https://pypi.org/pypi/spinalcord/${{ steps.ver.outputs.version }}/json" > /dev/null; then
+          if curl -sf "https://pypi.org/pypi/afferent/${{ steps.ver.outputs.version }}/json" > /dev/null; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::spinalcord ${{ steps.ver.outputs.version }} already on PyPI — nothing to publish."
+            echo "::notice::afferent ${{ steps.ver.outputs.version }} already on PyPI — nothing to publish."
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::spinalcord ${{ steps.ver.outputs.version }} is new — building and publishing."
+            echo "::notice::afferent ${{ steps.ver.outputs.version }} is new — building and publishing."
           fi
 
       - name: Build + test

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import unittest
 
-from spinalcord import FakeBackend
-from spinalcord.types import Observation, VisualElement
+from afferent import FakeBackend
+from afferent.types import Observation, VisualElement
 
 
 class FakeBackendTests(unittest.TestCase):

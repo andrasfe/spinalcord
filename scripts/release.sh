@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# release.sh — build and publish spinalcord to PyPI (or TestPyPI).
+# release.sh — build and publish afferent to PyPI (or TestPyPI).
 #
 # Usage:
 #   scripts/release.sh [--test] [--skip-tests] [--tag] [--yes]
@@ -53,7 +53,7 @@ if [[ "$SKIP_TESTS" -eq 0 ]]; then
   python3 -m unittest discover -s tests -p 'test_*.py' -t .
 fi
 
-VERSION="$(python3 -c 'import spinalcord; print(spinalcord.__version__)')"
+VERSION="$(python3 -c 'import afferent; print(afferent.__version__)')"
 say "Version: $VERSION"
 
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -75,7 +75,7 @@ if [[ "$TEST" -eq 1 ]]; then
 fi
 
 if [[ "$ASSUME_YES" -eq 0 ]]; then
-  printf '\nUpload spinalcord %s to %s? [y/N] ' "$VERSION" "$TARGET"
+  printf '\nUpload afferent %s to %s? [y/N] ' "$VERSION" "$TARGET"
   read -r ans
   [[ "$ans" == "y" || "$ans" == "Y" ]] || { echo "aborted."; exit 1; }
 fi
@@ -83,15 +83,15 @@ fi
 say "Uploading to $TARGET"
 python3 -m twine upload "${REPO_ARGS[@]}" dist/*
 
-say "Done — $TARGET has spinalcord $VERSION"
+say "Done — $TARGET has afferent $VERSION"
 if [[ "$TEST" -eq 1 ]]; then
-  echo "Verify:  pip install --index-url https://test.pypi.org/simple/ spinalcord==$VERSION"
+  echo "Verify:  pip install --index-url https://test.pypi.org/simple/ afferent==$VERSION"
 else
-  echo "Verify:  pip install spinalcord==$VERSION"
+  echo "Verify:  pip install afferent==$VERSION"
 fi
 
 if [[ "$DO_TAG" -eq 1 && "$TEST" -eq 0 ]]; then
   say "Tagging v$VERSION"
-  git tag -a "v$VERSION" -m "spinalcord $VERSION"
+  git tag -a "v$VERSION" -m "afferent $VERSION"
   git push origin "v$VERSION"
 fi

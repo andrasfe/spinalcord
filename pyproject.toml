@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "spinalcord"
+name = "afferent"
 dynamic = ["version"]
 description = "A backend-agnostic sensorimotor protocol — eyes and hands for cognitive agents driving a computer."
 readme = "README.md"
@@ -40,11 +40,11 @@ Repository = "https://github.com/andrasfe/spinalcord"
 Issues = "https://github.com/andrasfe/spinalcord/issues"
 
 [tool.hatch.version]
-# Single source of truth — bump __version__ in spinalcord/__init__.py only.
-path = "spinalcord/__init__.py"
+# Single source of truth — bump __version__ in afferent/__init__.py only.
+path = "afferent/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["spinalcord"]
+packages = ["afferent"]
 
 [tool.ruff]
 line-length = 100

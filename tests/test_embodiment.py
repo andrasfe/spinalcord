@@ -4,8 +4,8 @@ from __future__ import annotations
 import itertools
 import unittest
 
-from spinalcord import Embodiment, FakeBackend, SafetyGate
-from spinalcord.types import Observation, VisualElement
+from afferent import Embodiment, FakeBackend, SafetyGate
+from afferent.types import Observation, VisualElement
 
 
 def _script():

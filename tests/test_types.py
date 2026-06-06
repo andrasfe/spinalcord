@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from spinalcord.types import Observation, VisualElement
+from afferent.types import Observation, VisualElement
 
 
 class VisualElementTests(unittest.TestCase):

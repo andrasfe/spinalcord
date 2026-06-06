@@ -7,7 +7,7 @@ relevant section here in the same change.
 
 ## What this is
 
-`spinalcord` is a **backend-agnostic sensorimotor protocol**: the typed,
+`afferent` is a **backend-agnostic sensorimotor protocol**: the typed,
 safety-gated seam between a cognitive layer ("brain", the planner) and an
 embodiment layer ("body", the backend). Afferent signals go up (eyes:
 `observe` / `locate` / `verify` / `read_text`); efferent signals go down
@@ -15,11 +15,11 @@ embodiment layer ("body", the backend). Afferent signals go up (eyes:
 
 It is a standalone library — no ties to any particular body or planner. The
 package is **stdlib-only** (zero runtime dependencies). It is published to
-PyPI as `spinalcord`.
+PyPI as `afferent`.
 
 ## Design rules (load-bearing — don't break these)
 
-1. **Core stays dependency-free.** `spinalcord/types.py`, `safety.py`,
+1. **Core stays dependency-free.** `afferent/types.py`, `safety.py`,
    `embodiment.py`, `backends/base.py`, `backends/fake.py`, and the package
    `__init__` must import with **stdlib only**. A real-body backend may need
    third-party packages (httpx, a CV stack, pyautogui, …) — put those behind
@@ -45,7 +45,7 @@ PyPI as `spinalcord`.
 ## Layout
 
 ```
-spinalcord/
+afferent/
   __init__.py          # public surface + __version__ (single source of truth)
   types.py             # Frame, VisualElement, Observation, LocateResult,
                        #   VerifyResult, ActionResult  (the protocol)
@@ -84,7 +84,7 @@ test for it.
 
 ## Releasing
 
-Version is single-sourced from `__version__` in `spinalcord/__init__.py`
+Version is single-sourced from `__version__` in `afferent/__init__.py`
 (hatchling reads it; `pyproject.toml` declares `dynamic = ["version"]`).
 
 - **CI (primary):** bump `__version__`, commit, push to `main`.
@@ -99,7 +99,7 @@ Version is single-sourced from `__version__` in `spinalcord/__init__.py`
 
 ## Conventions
 
-- Keep public surface in `spinalcord/__init__.py:__all__` current.
+- Keep public surface in `afferent/__init__.py:__all__` current.
 - Docstrings explain *why*; code says *what*. No emojis in code.
 - `from __future__ import annotations` in every module (supports Python 3.9).
 - Target Python ≥ 3.9; avoid 3.10+ runtime syntax (no `match`, no runtime

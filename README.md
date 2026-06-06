@@ -1,16 +1,16 @@
-# spinalcord
+# afferent
 
 **A backend-agnostic sensorimotor protocol — eyes and hands for cognitive agents driving a computer.**
 
 A cognitive layer (a *brain*) plans; an embodiment layer (a *body*) acts.
-`spinalcord` is the conduit between them. It carries **afferent** signals up
+`afferent` is the conduit between them. It carries **afferent** signals up
 (eyes — `observe` / `locate` / `verify` / `read_text`) and **efferent**
 signals down (hands — `click` / `type_text` / `key` / `scroll`), as typed,
 safety-gated calls over a **pluggable backend**.
 
 ```
    ┌─────────┐   afferent (eyes) ↑    ┌────────────┐   actions   ┌──────────┐
-   │  brain  │ ◀───────────────────── │ spinalcord │ ──────────▶ │   body   │
+   │  brain  │ ◀───────────────────── │  afferent  │ ──────────▶ │   body   │
    │ (plans) │ ──────────────────────▶│ (protocol) │ ◀────────── │ (backend)│
    └─────────┘   efferent (hands) ↓    └────────────┘  observations└──────────┘
 ```
@@ -24,7 +24,7 @@ or a test harness. The protocol doesn't care which.
 ## Why it exists
 
 Most computer-use agents fuse perception, planning, and action into one
-monolith. `spinalcord` deliberately splits the *body* from the *mind* with a
+monolith. `afferent` deliberately splits the *body* from the *mind* with a
 narrow, typed seam, so:
 
 - the planner stays free to be anything (an LLM loop, a cognitive
@@ -37,16 +37,16 @@ narrow, typed seam, so:
 ## Install
 
 ```bash
-pip install spinalcord
+pip install afferent
 ```
 
-That's it — no dependencies. (Dev tooling: `pip install spinalcord[dev]`.)
+That's it — no dependencies. (Dev tooling: `pip install afferent[dev]`.)
 
 ## Quickstart — offline, scripted body (works immediately)
 
 ```python
-from spinalcord import Embodiment
-from spinalcord.types import Observation, VisualElement
+from afferent import Embodiment
+from afferent.types import Observation, VisualElement
 
 screen0 = Observation(
     ts=0.0, frontmost_app="Firefox",
@@ -66,7 +66,7 @@ print(res.ok, res.steps, res.state_after.ocr_text)  # grounded outcome
 All coordinates are `pct` — fractions in `[0, 1]`, top-left origin,
 resolution-independent (so they're stable world-model keys across machines).
 
-Typed results (`spinalcord.types`): `Frame`, `VisualElement`, `Observation`,
+Typed results (`afferent.types`): `Frame`, `VisualElement`, `Observation`,
 `LocateResult`, `VerifyResult`, `ActionResult`.
 
 `Observation.render_text()` is a **stable, compact, embeddable** one-screen
@@ -93,7 +93,7 @@ pass.
 
 ## Writing a backend
 
-Subclass `spinalcord.Backend`, implement the eyes (`observe`, optionally
+Subclass `afferent.Backend`, implement the eyes (`observe`, optionally
 `locate` / `verify` / `read_text`) and the raw hands (`do_click_at`,
 `do_type_text`, `do_key`, optionally `do_move_to` / `do_scroll`), and declare
 `capabilities()`. `Embodiment` applies the `SafetyGate` and the post-action
@@ -101,8 +101,8 @@ observation for you — a backend only answers "how do I see / move", never
 "should I".
 
 ```python
-from spinalcord import Backend, Embodiment
-from spinalcord.types import Observation, ActionResult
+from afferent import Backend, Embodiment
+from afferent.types import Observation, ActionResult
 
 class MyBackend(Backend):
     name = "mybody"
@@ -120,7 +120,7 @@ class MyBackend(Backend):
 em = Embodiment(MyBackend(), read_only=False)
 ```
 
-`FakeBackend` (in `spinalcord/backends/fake.py`) is a complete, readable
+`FakeBackend` (in `afferent/backends/fake.py`) is a complete, readable
 reference implementation of the contract.
 
 ## Develop
@@ -133,7 +133,7 @@ python -m unittest discover -s tests -v     # fully offline, no deps
 
 ## Releasing
 
-Publishing is automatic. Bump `__version__` in `spinalcord/__init__.py`,
+Publishing is automatic. Bump `__version__` in `afferent/__init__.py`,
 commit, and **push to `main`** — `.github/workflows/publish.yml` builds, tests,
 and publishes to PyPI via Trusted Publishing (no tokens). Pushes that don't
 change the version are a no-op (the workflow checks PyPI and skips).

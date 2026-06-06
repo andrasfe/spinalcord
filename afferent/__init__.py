@@ -1,7 +1,7 @@
-"""spinalcord — a backend-agnostic sensorimotor protocol for cognitive agents.
+"""afferent — a backend-agnostic sensorimotor protocol for cognitive agents.
 
 A cognitive layer (a "brain") plans; an embodiment layer (a "body") acts.
-``spinalcord`` is the conduit between them: it carries **afferent** signals
+``afferent`` is the conduit between them: it carries **afferent** signals
 up (eyes — observe / locate / verify / read) and **efferent** signals down
 (hands — click / type / key / scroll), as typed, safety-gated calls over a
 pluggable `Backend`.
