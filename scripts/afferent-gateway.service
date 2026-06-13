@@ -1,0 +1,33 @@
+# afferent-gateway.service — the multi-host BT HID body, on the Raspberry Pi.
+#
+# Install (after `pip install afferent[gateway]` into the Pi's venv):
+#   sudo cp scripts/afferent-gateway.service /etc/systemd/system/
+#   # edit User / WorkingDirectory / ExecStart paths for your venv, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now afferent-gateway
+#
+# The ExecStartPre lines configure the USB ECM gadget (so the dev host can
+# reach the gateway at 10.0.0.2) and the BT radio mode; ship your own or
+# drop them if your Pi is set up another way.
+
+[Unit]
+Description=afferent multi-host BT HID gateway
+After=network.target network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/andras/afferent
+ExecStart=/home/andras/afferent/.venv/bin/afferent-gateway
+# Always come back, forever — a Pi in a closet has no operator to notice
+# "start request repeated too quickly".
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=0
+Environment=PATH=/home/andras/afferent/.venv/bin:/usr/local/bin:/usr/bin:/bin
+# Pi-initiated BT reconnect watchdog interval (seconds).
+Environment=AFFERENT_BT_RECONNECT_INTERVAL_S=20
+
+[Install]
+WantedBy=multi-user.target

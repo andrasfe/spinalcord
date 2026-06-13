@@ -15,11 +15,11 @@ safety-gated calls over a **pluggable backend**.
    └─────────┘   efferent (hands) ↓    └────────────┘  observations└──────────┘
 ```
 
-The package is **dependency-free** (stdlib only). It ships one working
-backend — `FakeBackend` (scripted, hardware-free) — and a `Backend` ABC you
-subclass to drive a real body: browser automation (Playwright/Selenium), OS
-automation (pyautogui / accessibility APIs), a VM driver, a remote HID bridge,
-or a test harness. The protocol doesn't care which.
+The core is **dependency-free** (stdlib only). It ships three backends —
+`FakeBackend` (scripted, hardware-free), `MacOSBackend` (drives the host Mac
+via `screencapture` + `cliclick`), and `PiHidBackend` (drives a *remote*
+machine through a Bluetooth-HID gateway) — plus a `Backend` ABC you subclass
+to drive any other body. The protocol doesn't care which.
 
 ## Why it exists
 
@@ -80,6 +80,44 @@ Eyes use the built-in `screencapture` (grant **Screen Recording**); hands use
 [`cliclick`](https://github.com/BlueM/cliclick) (`brew install cliclick`, grant
 **Accessibility**). Missing tools degrade gracefully — `capabilities()` reflects
 what's actually available.
+
+## Driving a *remote* machine — the BT HID gateway
+
+`MacOSBackend` drives the host it runs on. To drive a **different** computer —
+one you can't run code on — `afferent` ships a Bluetooth-HID body: a Raspberry
+Pi bonded to one or more targets like a multi-device keyboard/mouse, exposing a
+REST API. The consumer side is stdlib-only:
+
+```python
+from afferent import Embodiment, PiHidBackend
+
+# Pin to one target by its Bluetooth MAC; several can stay connected at once
+# and only the addressed machine receives input.
+be = PiHidBackend(base_url="http://10.0.0.2:8080",
+                  host_mac="84:2F:57:7D:85:21")
+em = Embodiment(be, read_only=False)
+
+em.key("cmd+tab")              # app switch on that machine
+em.type_text("hello\n")        # types only on that host
+be.client.set_active_host(...) # or route unaddressed calls
+```
+
+A gateway is **hands without eyes** — it sends *relative* motion and key/text
+reports, so `type_text` / `key` / `scroll` work directly, but absolute
+`click_at(x_pct, y_pct)` needs a `homer=` (a visual servo that watches the
+screen and drives the cursor to the target). Inject one if your consumer has
+eyes; otherwise pct clicks return `ok=False` with a clear reason.
+
+**Pi side** (`pip install afferent[gateway]`, runs the L2CAP multi-host HID
+server + REST gateway):
+
+```bash
+afferent-gateway            # serves http://0.0.0.0:8080
+```
+
+See `scripts/afferent-gateway.service` for a systemd unit and
+`scripts/macos-devmouse-autoconnect.sh` for a macOS agent that keeps a target
+auto-reconnected like a real Bluetooth mouse (`--install`, `--pause`, `--status`).
 
 ## The protocol
 
