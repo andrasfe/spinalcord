@@ -57,6 +57,15 @@ class GatewayRoutingTests(unittest.TestCase):
         self.assertEqual(body["host"], "84:2F:57:7D:85:21")  # normalized upper
         self.assertEqual(body["x"], 10)
 
+    def test_move_large_hits_dedicated_endpoint(self):
+        c, cap = _client(host_mac="AA:BB:CC:DD:EE:FF")
+        with mock.patch("urllib.request.urlopen", cap):
+            c.move_large(2000, -1500)
+        _, url, body = cap.calls[0]
+        self.assertTrue(url.endswith("/bt/mouse/move_large"))
+        self.assertEqual((body["x"], body["y"]), (2000, -1500))
+        self.assertEqual(body["host"], "AA:BB:CC:DD:EE:FF")
+
     def test_no_host_mac_leaves_payload_unrouted(self):
         c, cap = _client(host_mac=None)
         with mock.patch("urllib.request.urlopen", cap):
