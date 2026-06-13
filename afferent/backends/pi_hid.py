@@ -136,6 +136,15 @@ class GatewayClient:
     def move(self, dx: int, dy: int) -> dict:
         return self._post("/bt/mouse/move", {"x": int(dx), "y": int(dy)})
 
+    def move_large(self, dx: int, dy: int) -> dict:
+        """One high-velocity burst, chunked into ±127 reports Pi-side in a
+        single POST. macOS applies its fast-pointer-accel curve to the burst,
+        so the cursor covers far more screen per HID unit than the same total
+        sent as throttled ``move`` calls — a visual-servo's cruise phase
+        depends on this. Falls back to the gateway's regular move if the
+        server predates the endpoint."""
+        return self._post("/bt/mouse/move_large", {"x": int(dx), "y": int(dy)})
+
     def click(self, button: str = "left", count: int = 1) -> dict:
         return self._post(
             "/bt/mouse/click", {"button": button, "count": int(count)}
