@@ -15,9 +15,10 @@ post-action observation.
 """
 from __future__ import annotations
 
-from .backends.base import Backend
+from .backends.base import Backend, BackendUnavailable
 from .backends.fake import FakeBackend
 from .backends.macos import MacOSBackend
+from .backends.pi_hid import GatewayClient, PiHidBackend
 from .embodiment import Embodiment
 from .safety import SafetyGate
 from .types import (
@@ -29,13 +30,16 @@ from .types import (
     VisualElement,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Embodiment",
     "Backend",
+    "BackendUnavailable",
     "FakeBackend",
     "MacOSBackend",
+    "PiHidBackend",
+    "GatewayClient",
     "SafetyGate",
     "Frame",
     "VisualElement",

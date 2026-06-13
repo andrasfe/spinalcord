@@ -33,6 +33,15 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "build>=1.2", "twine>=5"]
+# The Pi-side multi-host BT HID gateway (afferent.gateway). Installed ON
+# the Raspberry Pi, not the consumer: it brings the web server deps. The
+# BlueZ D-Bus binding (python3-dbus) is provided by apt on the Pi via a
+# --system-site-packages venv, so it is intentionally NOT pinned here.
+# The consumer-side GatewayClient / PiHidBackend stay stdlib-only.
+gateway = ["fastapi>=0.110.0", "uvicorn[standard]>=0.27.0"]
+
+[project.scripts]
+afferent-gateway = "afferent.gateway.server:main"
 
 [project.urls]
 Homepage = "https://github.com/andrasfe/spinalcord"
