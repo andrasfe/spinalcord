@@ -632,16 +632,9 @@ def create_app(
         """
         bt = _get_bt()
         try:
-            rem_x, rem_y = request.x, request.y
-            n_reports = 0
-            while rem_x != 0 or rem_y != 0:
-                sx = max(-127, min(127, rem_x))
-                sy = max(-127, min(127, rem_y))
-                if sx != 0 or sy != 0:
-                    await bt.move(sx, sy, host=request.host)
-                    n_reports += 1
-                rem_x -= sx
-                rem_y -= sy
+            # The chunking + per-host serialization lock live in bt.move_large
+            # so the whole burst is one atomic, uninterruptible gesture.
+            n_reports = await bt.move_large(request.x, request.y, host=request.host)
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         return {
@@ -666,13 +659,14 @@ def create_app(
         """
         bt = _get_bt()
         try:
-            await bt.click(request.button, host=request.host)
-            for _ in range(1, request.count):
-                if request.inter_click_ms > 0:
-                    import asyncio as _aio
-                    await _aio.sleep(request.inter_click_ms / 1000.0)
-                await bt.click(request.button, host=request.host)
-        except (ValueError, Exception) as e:
+            # The multi-click loop + per-host lock live in bt.click so the
+            # whole N-click gesture stays atomic (a double-click's two
+            # presses can't be split by another caller to the same host).
+            await bt.click(
+                request.button, request.count, request.inter_click_ms,
+                host=request.host,
+            )
+        except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         return {
             "status": "ok",
