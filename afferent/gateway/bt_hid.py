@@ -254,9 +254,16 @@ class BtHidError(Exception):
 
 
 class _HidClient:
-    """One connected host: its socket pair + per-host input state."""
+    """One connected host: its socket pair + per-host input state.
 
-    __slots__ = ("mac", "ctrl", "intr", "mouse_buttons", "control_task")
+    ``lock`` serialises all HID activity to THIS host so two concurrent
+    callers (e.g. two apps both driving the same machine) can't interleave
+    their reports into garbage. It is created lazily on first use from
+    within the event loop — kept ``None`` at construction so the client can
+    be built in a sync context (tests) without a running loop.
+    """
+
+    __slots__ = ("mac", "ctrl", "intr", "mouse_buttons", "control_task", "lock")
 
     def __init__(
         self, mac: str, ctrl: socket.socket, intr: socket.socket,
@@ -266,6 +273,7 @@ class _HidClient:
         self.intr = intr
         self.mouse_buttons: int = 0
         self.control_task: asyncio.Task[None] | None = None
+        self.lock: asyncio.Lock | None = None
 
 
 def _clamp(value: int, minimum: int = -127, maximum: int = 127) -> int:
@@ -401,6 +409,18 @@ class BluetoothHidServer:
             "pass 'host' or POST /bt/active-host first "
             f"(connected: {sorted(self._clients)})"
         )
+
+    @staticmethod
+    def _lock_for(client: "_HidClient") -> asyncio.Lock:
+        """The per-host serialization lock, created lazily inside the
+        running loop. Holding it for the whole duration of a multi-report
+        action (a typed string, a key chord, a click, a burst move) keeps
+        a concurrent caller targeting the SAME host from interleaving its
+        reports midway. Different hosts have different locks, so they never
+        block each other."""
+        if client.lock is None:
+            client.lock = asyncio.Lock()
+        return client.lock
 
     async def start(self) -> None:
         """Open L2CAP listening sockets."""
@@ -643,8 +663,9 @@ class BluetoothHidServer:
         else:
             scan_code = key_name_to_hid(key)
             modifier = MODIFIER_NONE
-        await self._keystroke_preflight(client)
-        await self._tap_key(modifier, scan_code, client)
+        async with self._lock_for(client):
+            await self._keystroke_preflight(client)
+            await self._tap_key(modifier, scan_code, client)
         logger.debug(
             "BT keystroke → %s: %s (mod=0x%02X scan=0x%02X)",
             client.mac, key, modifier, scan_code,
@@ -662,8 +683,9 @@ class BluetoothHidServer:
             mod_bitmask |= MODIFIER_LEFT_SHIFT
         else:
             scan_code = key_name_to_hid(key)
-        await self._keystroke_preflight(client)
-        await self._tap_key(mod_bitmask, scan_code, client)
+        async with self._lock_for(client):
+            await self._keystroke_preflight(client)
+            await self._tap_key(mod_bitmask, scan_code, client)
         logger.debug(
             "BT combo → %s: %s+%s (mod=0x%02X scan=0x%02X)",
             client.mac, "+".join(modifiers), key, mod_bitmask, scan_code,
@@ -699,6 +721,13 @@ class BluetoothHidServer:
         if not text:
             return
         client = self._resolve(host)
+        async with self._lock_for(client):
+            await self._type_text_locked(client, text, warmup)
+        logger.debug("BT text → %s: %s", client.mac, text[:50])
+
+    async def _type_text_locked(
+        self, client: "_HidClient", text: str, warmup: bool,
+    ) -> None:
         # Pre-flight: three releases + 500ms settle. Drains any
         # half-processed report state on the receiver side.
         for _ in range(3):
@@ -744,7 +773,6 @@ class BluetoothHidServer:
             modifier, scan_code = char_to_hid(char)
             await self._tap_key(modifier, scan_code, client)
             await asyncio.sleep(self._inter_char_delay)
-        logger.debug("BT text → %s: %s", client.mac, text[:50])
 
     # ------------------------------------------------------------------
     # Mouse
@@ -763,22 +791,87 @@ class BluetoothHidServer:
         report = struct.pack("BBBbbb", 0xA1, REPORT_ID_MOUSE, buttons, x, y, wheel)
         await self._send_raw(report, client)
 
+    # Internal unlocked primitives — given a resolved client; the public
+    # methods hold the per-host lock around these. ``click`` reuses
+    # ``_press_locked`` / ``_release_locked`` under ONE lock so a double-
+    # click's two presses can't be split by another caller.
+    def _btn(self, button: str) -> int:
+        btn = BUTTON_MAP.get(button.lower())
+        if btn is None:
+            raise ValueError(
+                f"Unknown button: {button!r}. Use: left, right, middle"
+            )
+        return btn
+
+    async def _press_locked(self, client: "_HidClient", button: str) -> None:
+        client.mouse_buttons |= self._btn(button)
+        await self._send_mouse_report(client.mouse_buttons, 0, 0, 0, client)
+
+    async def _release_locked(self, client: "_HidClient", button: str) -> None:
+        client.mouse_buttons &= ~self._btn(button)
+        await self._send_mouse_report(client.mouse_buttons, 0, 0, 0, client)
+
     async def move(
         self, x: int, y: int, *, host: str | None = None,
     ) -> None:
         """Move the mouse cursor by (x, y) relative pixels."""
         client = self._resolve(host)
-        await self._send_mouse_report(client.mouse_buttons, x, y, 0, client)
+        async with self._lock_for(client):
+            await self._send_mouse_report(client.mouse_buttons, x, y, 0, client)
         logger.debug("BT mouse move → %s: dx=%d dy=%d", client.mac, x, y)
 
+    async def move_large(
+        self, x: int, y: int, *, host: str | None = None,
+    ) -> int:
+        """Move by an arbitrary delta as one high-velocity burst.
+
+        The on-wire report uses int8 deltas (±127/axis), so a large
+        logical move is split into back-to-back reports — sent under ONE
+        per-host lock so a concurrent caller can't slice the burst (which
+        would split macOS's high-speed pointer-accel curve and land the
+        cursor somewhere unintended). Returns the number of reports sent.
+        """
+        client = self._resolve(host)
+        rem_x, rem_y = int(x), int(y)
+        n = 0
+        async with self._lock_for(client):
+            while rem_x != 0 or rem_y != 0:
+                sx = _clamp(rem_x)
+                sy = _clamp(rem_y)
+                if sx != 0 or sy != 0:
+                    await self._send_mouse_report(
+                        client.mouse_buttons, sx, sy, 0, client,
+                    )
+                    n += 1
+                rem_x -= sx
+                rem_y -= sy
+        logger.debug(
+            "BT mouse move_large → %s: (%d,%d) in %d reports",
+            client.mac, x, y, n,
+        )
+        return n
+
     async def click(
-        self, button: str = "left", *, host: str | None = None,
+        self,
+        button: str = "left",
+        count: int = 1,
+        inter_click_ms: int = 40,
+        *,
+        host: str | None = None,
     ) -> None:
-        """Click a mouse button (press and release)."""
-        await self.press(button, host=host)
-        await asyncio.sleep(0.05)
-        await self.release(button, host=host)
-        logger.debug("BT mouse click: %s", button)
+        """Click ``count`` times with tight inter-click timing, all under
+        ONE per-host lock so the whole multi-click stays a single atomic
+        gesture (a double-click's two presses can't be interleaved by
+        another caller, which would otherwise register as two singles)."""
+        client = self._resolve(host)
+        async with self._lock_for(client):
+            for i in range(max(1, count)):
+                if i > 0 and inter_click_ms > 0:
+                    await asyncio.sleep(inter_click_ms / 1000.0)
+                await self._press_locked(client, button)
+                await asyncio.sleep(0.05)
+                await self._release_locked(client, button)
+        logger.debug("BT mouse click → %s: %s x%d", client.mac, button, count)
 
     async def press(
         self, button: str = "left", *, host: str | None = None,
@@ -786,15 +879,15 @@ class BluetoothHidServer:
         """Hold a mouse button down. Stays pressed until release(); used
         by drag-and-drop where moves between press/release become drag
         deltas instead of cursor-only motion. Button state is PER HOST
-        — a drag held on one host never leaks into another's reports."""
-        btn = BUTTON_MAP.get(button.lower())
-        if btn is None:
-            raise ValueError(f"Unknown button: {button!r}. Use: left, right, middle")
+        — a drag held on one host never leaks into another's reports.
+
+        NOTE: a drag spans several requests (press, move…, release); the
+        per-host lock serialises each individually but does not make the
+        whole drag transactional. Two apps dragging the SAME host at once
+        still need to coordinate at the app level."""
         client = self._resolve(host)
-        client.mouse_buttons |= btn
-        await self._send_mouse_report(
-            client.mouse_buttons, 0, 0, 0, client,
-        )
+        async with self._lock_for(client):
+            await self._press_locked(client, button)
         logger.debug("BT mouse press → %s: %s", client.mac, button)
 
     async def release(
@@ -803,14 +896,9 @@ class BluetoothHidServer:
         """Release a previously-pressed mouse button. Idempotent —
         releasing an already-released button just resends the current
         button state (cheap no-op)."""
-        btn = BUTTON_MAP.get(button.lower())
-        if btn is None:
-            raise ValueError(f"Unknown button: {button!r}. Use: left, right, middle")
         client = self._resolve(host)
-        client.mouse_buttons &= ~btn
-        await self._send_mouse_report(
-            client.mouse_buttons, 0, 0, 0, client,
-        )
+        async with self._lock_for(client):
+            await self._release_locked(client, button)
         logger.debug("BT mouse release → %s: %s", client.mac, button)
 
     async def scroll(
@@ -818,9 +906,10 @@ class BluetoothHidServer:
     ) -> None:
         """Scroll the mouse wheel. Positive=up, negative=down."""
         client = self._resolve(host)
-        await self._send_mouse_report(
-            client.mouse_buttons, 0, 0, amount, client,
-        )
+        async with self._lock_for(client):
+            await self._send_mouse_report(
+                client.mouse_buttons, 0, 0, amount, client,
+            )
         logger.debug("BT mouse scroll → %s: %d", client.mac, amount)
 
     # ------------------------------------------------------------------
